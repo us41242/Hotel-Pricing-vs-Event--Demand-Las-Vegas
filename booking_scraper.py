@@ -1,4 +1,5 @@
 import time
+import pandas as pd
 from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -32,11 +33,12 @@ def run_scraper():
     # 2. Setup Browser
     print("Initializing Browser...")
     options = webdriver.ChromeOptions()
-    # Uncomment to run in headless mode
-    # options.add_argument("--headless") 
+    # Uncomment to run in headless mode # options.add_argument("--headless") 
 
     options.add_argument("--start-maximized")
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+    hotel_data = [] # List to store our data
 
     try:
         # 3. Navigate to Booking.com Search Results for Las Vegas
@@ -73,28 +75,67 @@ def run_scraper():
         )
         print("Hotel list loaded.")
 
-        # 6. Extract Hotel Names and Prices
+        for _ in range(3):
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(2)
+
         hotels = driver.find_elements(By.CSS_SELECTOR, '[data-testid="property-card"]')
-        
-        print(f"\nFound {len(hotels)} hotels on Page 1. Here are the top 5:\n")
-        
-        for index, hotel in enumerate(hotels[:5]): 
-            # Extract hotel name and price
+        print(f"Found {len(hotels)} hotels. Extracting data...")
+
+        for hotel in hotels:
+            # We use a dictionary for each hotel so we can easily save to CSV later
+            record = {
+                'name': None,
+                'price': None,
+                'rating': None,
+                'review_count': None,
+                'distance': None,
+                'date_scraped': datetime.now().strftime("%Y-%m-%d")
+            }
+            
+            # Extract Data with Error Handling
             try:
-                name = hotel.find_element(By.CSS_SELECTOR, '[data-testid="title"]').text
-                price = hotel.find_element(By.CSS_SELECTOR, '[data-testid="price-and-discounted-price"]').text
-                print(f"{index + 1}. {name} | {price}")
-            except Exception as e:
-                print(f"{index + 1}. Error extracting data for this card")
+                record['name'] = hotel.find_element(By.CSS_SELECTOR, '[data-testid="title"]').text
+            except: pass
+
+            try:
+                record['price'] = hotel.find_element(By.CSS_SELECTOR, '[data-testid="price-and-discounted-price"]').text
+            except: pass
+
+            try:
+                #  Targets "8.8 Fabulous"
+                record['rating'] = hotel.find_element(By.CSS_SELECTOR, '[data-testid="reviewer-score"]').text.split()[0]
+            except: pass
+            
+            try:
+                #  Targets "1234 reviews"
+                record['review_count'] = hotel.find_element(By.CSS_SELECTOR, '[data-testid="review-score"] div:nth-child(2)').text
+            except: pass
+                # Distance from center or landmark
+            try:
+                record['distance'] = hotel.find_element(By.CSS_SELECTOR, '[data-testid="distance"]').text
+            except: pass
+            
+            # Only add record if we have a hotel name
+            if record['name']:
+                hotel_data.append(record)
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"Critical Error: {e}")
         
     finally:
-        # Keep the browser open for a while to review results
-        print("\nClosing in 20 seconds...")
-        time.sleep(20)
         driver.quit()
+        
+        # SAVE TO CSV
+        if hotel_data:
+            df = pd.DataFrame(hotel_data)
+            # Create a filename with today's date
+            filename = f"vegas_hotels_{datetime.now().strftime('%Y-%m-%d')}.csv"
+            df.to_csv(filename, index=False)
+            print(f"SUCCESS: Saved {len(df)} rows to {filename}")
+            print(df.head()) # Show first 5 rows in terminal
+        else:
+            print("No data found.")
 
 if __name__ == "__main__":
     run_scraper()
