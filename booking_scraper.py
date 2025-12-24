@@ -130,7 +130,7 @@ def run_scraper():
         if hotel_data:
             df = pd.DataFrame(hotel_data)
             # Create a filename with today's date
-            filename = f"vegas_hotels_{datetime.now().strftime('%Y-%m-%d')}.csv"
+            filename = f"data/vegas_hotels_{datetime.now().strftime('%Y-%m-%d')}.csv"
             df.to_csv(filename, index=False)
             print(f"SUCCESS: Saved {len(df)} rows to {filename}")
             print(df.head()) # Show first 5 rows in terminal
