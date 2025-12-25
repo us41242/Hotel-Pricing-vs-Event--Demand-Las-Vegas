@@ -26,15 +26,23 @@ def get_next_weekend():
     return next_friday.strftime("%Y-%m-%d"), next_sunday.strftime("%Y-%m-%d")
 
 def run_scraper():
-    # 1. Setup Dates
+    import argparse
+
+    # 1. Setup Arguments
+    parser = argparse.ArgumentParser(description="Scrape Booking.com for Las Vegas hotels.")
+    parser.add_argument("--headless", action="store_true", help="Run in headless mode")
+    args = parser.parse_args()
+
+    # 2. Setup Dates
     checkin_date, checkout_date = get_next_weekend()
     print(f"--- Target Weekend: {checkin_date} to {checkout_date} ---")
 
-    # 2. Setup Browser
+    # 3. Setup Browser
     print("Initializing Browser...")
     options = webdriver.ChromeOptions()
-    # Uncomment to run in headless mode # options.add_argument("--headless") 
-
+    if args.headless:
+        options.add_argument("--headless")
+    
     options.add_argument("--start-maximized")
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
